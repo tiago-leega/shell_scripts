@@ -659,5 +659,9 @@ else
 
 		FNC_Log "### ALERTA: Termino do Processo: SPROCE_VALIDA_REMESSA_0001.sh -> Bandeira: ${p_CD_BANDEIRA} - Credenciadora: ${p_CD_CREDENCIADORA} <- ###"
 fi
-
+#chama a shell para realizar o de-para de BANCO para ISPB no arquivo da rede
+if [ "${p_CD_BANDEIRA}" -eq 1606 ]
+then
+	sh ${v_NOM_DIR_FILE_SCRIPT}"SPROCE_DEPARA_DOMINIO_BNCO_ISPB.sh" "1" "${v_NOM_DIR_FILE_SRC}" "${p_CD_BANDEIRA}" "${p_CD_CREDENCIADORA}" "${v_NOM_ARQ_FINAL}" "${v_NOM_DIR_FILE_TGT}"
+fi
 exit 0
