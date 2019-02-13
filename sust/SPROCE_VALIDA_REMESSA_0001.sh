@@ -30,9 +30,11 @@ v_NOM_DIR_FILE_RET=${4}
 v_NOM_DIR_FILE_PROC=${5}
 v_NOM_DIR_RAIZ=${6}
 v_NOM_DIR_FILE_TGT=${v_NOM_DIR_RAIZ}"/TgtFiles/"
+v_NOM_DIR_FILE_SCRIPT=${v_NOM_DIR_RAIZ}"/Scripts/"
 v_DT_EXEC=`echo $( date +%Y%m%d-%H%M%S )`
 v_DT=`echo $( date +%d%m%y )`
 v_DIAS_RETENCAO='7'
+
 
 #########################################
 # Parametros Recebidos                  #
@@ -44,13 +46,12 @@ p_CD_CREDENCIADORA=${2}
 # Declaracao de Arquivos (Source/Target/FileWatcher/Log) #
 ##########################################################
 #Definicao do nome do arquivo Origem
-f_NOM_ARQ_SRC=${v_NOM_DIR_FILE_SRC}"CAD_MANUT_CNPJ_CPF_TX_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}"_*.[Tt][Xx][Tt]"
+
+f_NOM_ARQ_SRC=${v_NOM_DIR_FILE_SRC}"CAD_MANUT_CNPJ_CPF_TX_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}"*.[Tt][Xx][Tt]"
 
 #Definicao do nome do arquivo Log
 f_NOM_ARQ_LOG=${v_NOM_DIR_FILE_TGT}"AO_0013_EPROPRCEXT_VALIDA_REMESSA_01_01_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}"_"${v_DT_EXEC}"_LOG.txt"
 
-#Definicao do nome do arquivo de Retorno
-f_NOM_ARQ_RET=${v_NOM_DIR_FILE_RET}"CAD_MANUT_CNPJ_CPF_RX_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}_${v_DT}".txt"
 
 #Definicao do nome do arquivo que contem somente o Header
 f_NOM_ARQ_HEADER=${v_NOM_DIR_FILE_TGT}"AB_0013_EPROPRCEXT_VALIDA_REMESSA_01_01_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}"_E0.txt"
@@ -68,6 +69,16 @@ f_NOM_ARQ_EXT_0010=${v_NOM_DIR_FILE_TGT}"AOPROPRC001001_"${p_CD_BANDEIRA}${p_CD_
 #Arquivo de apoio com informacoes de Bandeira, Credenciadora e Remessa
 f_NOM_ARQ_EXT_0011=${v_NOM_DIR_FILE_TGT}"AOPROPRC001101_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}".txt"
 
+v_FLAG_ONLINE=`cat ${f_NOM_ARQ_EXT_0011} | cut -d '|' -f4`
+v_REMESSA_CAD_ONLINE=`cat ${f_NOM_ARQ_EXT_0011} | cut -d '|' -f5`
+
+#Definicao do nome do arquivo de Retorno com base no cadastro online
+if [ ${v_FLAG_ONLINE} == 'N' ]
+then
+	f_NOM_ARQ_RET=${v_NOM_DIR_FILE_RET}"CAD_MANUT_CNPJ_CPF_RX_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}_${v_DT}".txt"
+else
+	f_NOM_ARQ_RET=${v_NOM_DIR_FILE_RET}"CAD_MANUT_CNPJ_CPF_RX_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}${v_REMESSA_CAD_ONLINE}$(date +%Y%m%d%H%M%S)".txt"
+fi
 
 ##############################################
 # Remove arquivos gerados na ultima execucao #
@@ -270,8 +281,22 @@ v_QTD_ARQ_DIR=`find ${f_NOM_ARQ_SRC} -type f | wc -l` 2>/dev/null
 
 if [ ${v_QTD_ARQ_DIR} -gt 0 ]
 then
-        v_NOM_ARQ_FINAL=`ls -lt ${f_NOM_ARQ_SRC} | head -1 | awk '{print $9}'`
-        FNC_Log "ALERTA: Foi(foram) encontrado(s) '${v_QTD_ARQ_DIR}' arquivo(s) no Diretorio: '${f_NOM_ARQ_SRC}'"
+		#Identifica se o processo contempla cadastro online, caso sim, resgato o arquivo com a menor remessa, senao, resgato o mais novo
+		
+		FNC_Log "ALERTA: Validando Cadastro Online"	
+
+		if [ ${v_FLAG_ONLINE} == 'S' ]
+		then 
+			v_NOM_ARQ_AUX="AO_0012_CAD_ONLINE_"${p_CD_BANDEIRA}${p_CD_CREDENCIADORA}"_LST.txt"	
+			v_NOM_ARQ_FINAL=${v_NOM_DIR_FILE_SRC}`cat ${v_NOM_DIR_FILE_TGT}${v_NOM_ARQ_AUX} | head -1 | cut -d'/' -f9` 
+			FNC_Log "ALERTA: Credenciadora Cadastrada Online "	
+		else
+			FNC_Log "ALERTA: Credenciadora nao Cadastrada Online "	
+			v_NOM_ARQ_FINAL=`ls -lt ${f_NOM_ARQ_SRC} | head -1 | awk '{print $9}'`
+		fi
+		
+		#v_NOM_ARQ_FINAL=`ls -lt ${f_NOM_ARQ_SRC} | head -1 | awk '{print $9}'`
+		FNC_Log "ALERTA: Foi(foram) encontrado(s) '${v_QTD_ARQ_DIR}' arquivo(s) no Diretorio: '${f_NOM_ARQ_SRC}'"
 		FNC_Log "ALERTA: Arquivo origem utilizado '${v_NOM_ARQ_FINAL}'"
 else
 		#Gera o FileWatcher Invalido
@@ -549,5 +574,9 @@ else
 		
 		FNC_Log "### ALERTA: Termino do Processo: SPROCE_VALIDA_REMESSA_0001.sh -> Bandeira: ${p_CD_BANDEIRA} - Credenciadora: ${p_CD_CREDENCIADORA} <- ###"
 fi
-
+#chama a shell para realizar o de-para de BANCO para ISPB no arquivo da rede
+if [ "${p_CD_CREDENCIADORA}" -eq 1606 ]
+then
+	sh ${v_NOM_DIR_FILE_SCRIPT}"SPROCE_DEPARA_DOMINIO_BNCO_ISPB.sh" "1" "${v_NOM_DIR_FILE_SRC}" "${p_CD_BANDEIRA}" "${p_CD_CREDENCIADORA}" "${v_NOM_ARQ_FINAL}" "${v_NOM_DIR_FILE_TGT}"
+fi
 exit 0
