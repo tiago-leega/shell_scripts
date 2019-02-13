@@ -79,8 +79,11 @@ FNC_DEPARA_BANCO(){
 		then
 			
 			#pega o numero do banco do arquivo do diretorio de recebido e remove zeros a esquerda
-			v_BANCO_DEB=`echo ${linha} | cut -c 34-41 | sed 's/^0*//'`
-			v_BANCO_CRED=`echo ${linha} | cut -c 69-76 | sed 's/^0*//'`
+			#v_BANCO_DEB=`echo ${linha} | cut -c 34-41 | sed 's/^0*//'`
+			#v_BANCO_CRED=`echo ${linha} | cut -c 69-76 | sed 's/^0*//'`
+			
+			v_BANCO_DEB=`echo ${linha} | cut -c 34-41`
+			v_BANCO_CRED=`echo ${linha} | cut -c 69-76`
 			
 			if [ ${p_FLAG_ORDEM} -eq 1 ]
 			then			
@@ -169,10 +172,12 @@ FNC_DEPARA_BANCO(){
 	then
 		#No final do processamento, subscreve o arquivo original pelo depara realizado
 		mv "${v_ARQV_TEMP}${v_ARQUIVO_REC}" "${p_NOM_DIR_FILE_SRC}${v_ARQUIVO_REC}"
+		chmod 666 "${p_NOM_DIR_FILE_SRC}${v_ARQUIVO_REC}"
 	elif [ ${p_FLAG_ORDEM} -eq 2 ] 
 	then
 		#No final do processamento, subscreve o arquivo temporario utilizado 
 		mv "${v_ARQV_RET_TEMP}${v_ARQUIVO_REC}" "${p_DIR_TGT}${v_ARQUIVO_REC}" 2>/dev/null
+		chmod 666 "${p_DIR_TGT}${v_ARQUIVO_REC}"
 	fi
 	
 	echo "\n" >> ${f_NOM_ARQ_LOG}
